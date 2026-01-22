@@ -53,11 +53,11 @@ body {
     font-size: clamp(1.5rem, 3vw, 2.5rem);
     font-weight: 400;
     color: #EDEDED;
-    margin-bottom: 3rem;
+    margin-bottom: .5rem;
 }
 
 .email-signup {
-    margin-top: 3rem;
+    margin-top: 1.5rem;
 }
 
 .signup-hint {
@@ -82,15 +82,21 @@ body {
     padding: 0.875rem 1.25rem;
     font-size: 1rem;
     font-family: 'DM Sans', sans-serif;
-    background-color: #2a2a2a;
-    border: none;
-    border-radius: 8px;
+    background: rgba(42, 42, 42, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
     color: #EDEDED;
     outline: none;
-    transition: background-color 0.2s;
-
-filter: drop-shadow(0px 0px 54px rgba(0, 196, 114, 0.1));
-
+    transition: all 0.2s;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 0 20px 10px rgba(255, 255, 255, 0.05);
+    filter: drop-shadow(0px 0px 54px rgba(0, 196, 114, 0.1));
+    position: relative;
 }
 
 .email-input::placeholder {
@@ -98,7 +104,24 @@ filter: drop-shadow(0px 0px 54px rgba(0, 196, 114, 0.1));
 }
 
 .email-input:focus {
-    background-color: #333;
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 0 20px 10px rgba(255, 255, 255, 0.08),
+        0 0 0 2px rgba(0, 196, 114, 0.2);
+}
+
+.email-input.error {
+    border-color: rgba(255, 77, 77, 0.5);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 77, 77, 0.2),
+        inset 0 -1px 0 rgba(255, 77, 77, 0.1),
+        inset 0 0 20px 10px rgba(255, 77, 77, 0.1),
+        0 0 0 2px rgba(255, 77, 77, 0.3);
+    filter: drop-shadow(0px 0px 54px rgba(255, 77, 77, 0.2));
 }
 
 .submit-button {
@@ -131,15 +154,53 @@ filter: drop-shadow(0px 0px 54px rgba(0, 196, 114, 0.1));
     position: absolute;
     bottom: 2rem;
     width: auto;
-    background-color: #07140E;
+    background: rgba(7, 20, 14, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
     z-index: 1;
-    border: 1px solid #293630;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 12px;
-    border-radius: 8px;
+    border-radius: 20px;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 0 20px 10px rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+}
+
+.footer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.3),
+        transparent,
+        rgba(255, 255, 255, 0.1)
+    );
 }
 
 .footer-text {
