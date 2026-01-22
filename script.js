@@ -122,10 +122,14 @@ const perlin = new PerlinNoise();
 
 // Animation time for noise
 let noiseTime = 0;
-const noiseSpeed = 0.02;
+const noiseSpeed = 0.01;
 const noiseScale = 0.01; // Scale for spatial noise
 const baseSize = 25;
-const sizeVariation = 25; // How much the size can vary (±8 pixels)
+const sizeVariation = 20; // How much the size can vary (±8 pixels)
+
+// Mouse influence parameters
+const mouseInfluenceRadius = 300; // Radius of influence sphere
+const mouseInfluenceBoost = 15; // Maximum additional size when at mouse position
 
 // Draw cursor using SVG image with variable size based on Perlin noise
 function drawCursor(ctx, x, y, angle = 0, size = baseSize) {
@@ -172,8 +176,8 @@ window.addEventListener('resize', () => {
 });
 
 // Mouse tracking
-let mouseX = 0;
-let mouseY = 0;
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
 let isMobile = window.innerWidth <= 768;
 let randomTargetX = 0;
 let randomTargetY = 0;
@@ -239,12 +243,9 @@ function draw() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Get current cursor/target position for noise offset
+    // Get current target position (mouse or random target for mobile)
     const targetX = isMobile ? currentTargetX : mouseX;
     const targetY = isMobile ? currentTargetY : mouseY;
-    
-    // Scale cursor position for noise offset (smaller scale = more subtle effect)
-    const cursorNoiseScale = 0.005;
     
     cursors.forEach(cursor => {
         // Only draw if cursor is visible on screen
@@ -252,17 +253,32 @@ function draw() {
             cursor.y >= -spacing && cursor.y <= canvas.height + spacing) {
             
             // Calculate size based on Perlin noise
-            // Use x, y position, cursor position offset, and time for 3D noise effect
+            // Use x, y position and time for 3D noise effect
             const noiseValue = perlin.noise(
-                (cursor.x + targetX * cursorNoiseScale) * noiseScale,
-                (cursor.y + targetY * cursorNoiseScale) * noiseScale,
+                cursor.x * noiseScale,
+                cursor.y * noiseScale,
                 noiseTime
             );
             
             // Map noise from [-1, 1] to size variation
             // Normalize noise to [0, 1] first
             const normalizedNoise = (noiseValue + 1) / 2;
-            const size = baseSize + (normalizedNoise - 0.5) * 2 * sizeVariation;
+            let size = baseSize + (normalizedNoise - 0.5) * 2 * sizeVariation;
+            
+            // Add mouse influence - calculate distance to target
+            const dx = cursor.x - targetX;
+            const dy = cursor.y - targetY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Apply smooth falloff based on distance
+            if (distance < mouseInfluenceRadius) {
+                // Smooth falloff using smoothstep function (easing)
+                const normalizedDistance = distance / mouseInfluenceRadius;
+                // Smoothstep: 3t^2 - 2t^3 for smooth easing
+                const influence = 1 - (normalizedDistance * normalizedDistance * (3 - 2 * normalizedDistance));
+                const sizeBoost = influence * mouseInfluenceBoost;
+                size += sizeBoost;
+            }
             
             drawCursor(ctx, cursor.x, cursor.y, cursor.angle, size);
         }
