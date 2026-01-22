@@ -124,11 +124,11 @@ const perlin = new PerlinNoise();
 let noiseTime = 0;
 const noiseSpeed = 0.01;
 const noiseScale = 0.01; // Scale for spatial noise
-const baseSize = 25;
-const sizeVariation = 20; // How much the size can vary (±8 pixels)
+const baseSize = 20;
+const sizeVariation = 18; // How much the size can vary (±8 pixels)
 
 // Mouse influence parameters
-const mouseInfluenceRadius = 300; // Radius of influence sphere
+const mouseInfluenceRadius = 500; // Radius of influence sphere
 const mouseInfluenceBoost = 15; // Maximum additional size when at mouse position
 
 // Draw cursor using SVG image with variable size based on Perlin noise
