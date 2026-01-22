@@ -67,8 +67,8 @@ window.addEventListener('resize', () => {
 let mouseX = 0;
 let mouseY = 0;
 let isMobile = window.innerWidth <= 768;
-let orientationTargetX = 0;
-let orientationTargetY = 0;
+let randomTargetX = 0;
+let randomTargetY = 0;
 
 // Update mouse position
 document.addEventListener('mousemove', (e) => {
@@ -80,53 +80,10 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-// Device orientation tracking for mobile
-let deviceBeta = 0;  // Front-back tilt (-180 to 180)
-let deviceGamma = 0; // Left-right tilt (-90 to 90)
-
-function handleDeviceOrientation(e) {
-    if (!isMobile) return;
-    
-    // Beta: front-back tilt (0 = flat, positive = tilted forward)
-    // Gamma: left-right tilt (0 = flat, positive = tilted right)
-    deviceBeta = e.beta !== null ? e.beta : 0;
-    deviceGamma = e.gamma !== null ? e.gamma : 0;
-    
-    // Map orientation to canvas coordinates
-    // Normalize beta to -90 to 90 range for better control
-    const normalizedBeta = Math.max(-90, Math.min(90, deviceBeta));
-    const normalizedGamma = Math.max(-90, Math.min(90, deviceGamma));
-    
-    // Map to canvas coordinates (center is 0,0, so we offset from center)
-    // Beta controls Y (forward/backward tilt)
-    // Gamma controls X (left/right tilt)
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const sensitivity = 3; // Adjust this to control how much tilt affects position
-    
-    orientationTargetX = centerX + (normalizedGamma / 90) * (canvas.width / 2) * sensitivity;
-    orientationTargetY = centerY + (normalizedBeta / 90) * (canvas.height / 2) * sensitivity;
-    
-    // Clamp to canvas bounds
-    orientationTargetX = Math.max(0, Math.min(canvas.width, orientationTargetX));
-    orientationTargetY = Math.max(0, Math.min(canvas.height, orientationTargetY));
-}
-
-// Request permission for device orientation (iOS 13+)
-if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    // iOS 13+ requires permission
-    document.addEventListener('touchstart', function() {
-        DeviceOrientationEvent.requestPermission()
-            .then(response => {
-                if (response === 'granted') {
-                    window.addEventListener('deviceorientation', handleDeviceOrientation);
-                }
-            })
-            .catch(console.error);
-    }, { once: true });
-} else {
-    // Android and older iOS
-    window.addEventListener('deviceorientation', handleDeviceOrientation);
+// Mobile: random target every 3 seconds
+function setRandomTarget() {
+    randomTargetX = Math.random() * canvas.width;
+    randomTargetY = Math.random() * canvas.height;
 }
 
 // Check if mobile
@@ -136,18 +93,25 @@ window.addEventListener('resize', () => {
     
     if (isMobile && !wasMobile) {
         // Switched to mobile - start animation
-        orientationTargetX = canvas.width / 2;
-        orientationTargetY = canvas.height / 2;
-        currentTargetX = orientationTargetX;
-        currentTargetY = orientationTargetY;
+        setRandomTarget();
+        currentTargetX = randomTargetX;
+        currentTargetY = randomTargetY;
         if (!animationFrameId) {
             animate();
         }
+        if (randomTargetInterval) {
+            clearInterval(randomTargetInterval);
+        }
+        randomTargetInterval = setInterval(setRandomTarget, 3000);
     } else if (!isMobile && wasMobile) {
         // Switched to desktop - stop animation
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
+        }
+        if (randomTargetInterval) {
+            clearInterval(randomTargetInterval);
+            randomTargetInterval = null;
         }
         if (imageLoaded) {
             draw();
@@ -159,6 +123,7 @@ window.addEventListener('resize', () => {
 let currentTargetX = 0;
 let currentTargetY = 0;
 let animationFrameId = null;
+let randomTargetInterval = null;
 
 // Calculate angle for each cursor to point at target, rotated 180 degrees
 function updateCursorAngles() {
@@ -191,9 +156,9 @@ function draw() {
 // Animation loop
 function animate() {
     if (isMobile) {
-        // Smooth interpolation towards orientation-based target
-        currentTargetX += (orientationTargetX - currentTargetX) * 0.1;
-        currentTargetY += (orientationTargetY - currentTargetY) * 0.1;
+        // Smooth interpolation towards random target
+        currentTargetX += (randomTargetX - currentTargetX) * 0.05;
+        currentTargetY += (randomTargetY - currentTargetY) * 0.05;
     }
     
     updateCursorAngles();
@@ -207,11 +172,11 @@ function animate() {
 // Initialize everything after image loads
 function initialize() {
     if (isMobile) {
-        // Start with center position
-        orientationTargetX = canvas.width / 2;
-        orientationTargetY = canvas.height / 2;
-        currentTargetX = orientationTargetX;
-        currentTargetY = orientationTargetY;
+        // Start with random position
+        setRandomTarget();
+        currentTargetX = randomTargetX;
+        currentTargetY = randomTargetY;
+        randomTargetInterval = setInterval(setRandomTarget, 3000);
         animate();
     } else {
         // Initial draw for desktop
