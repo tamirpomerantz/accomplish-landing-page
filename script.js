@@ -20,138 +20,118 @@ cursorImage.onload = function() {
     initialize();
 };
 
-// Three.js setup for hidden scene
-let threeScene, threeCamera, threeRenderer, torus;
-let renderTarget;
-let pixelData = null;
-const renderSize = 256; // Resolution for the render target (lower = better performance)
-
-// Initialize Three.js scene
-function initThreeScene() {
-    // Create scene
-    threeScene = new THREE.Scene();
-    threeScene.background = new THREE.Color(0x000000);
+// Perlin Noise implementation
+class PerlinNoise {
+    constructor() {
+        this.permutation = [
+            151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
+            140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148,
+            247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32,
+            57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175,
+            74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122,
+            60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102, 143, 54,
+            65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169,
+            200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64,
+            52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212,
+            207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213,
+            119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+            129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104,
+            218, 246, 97, 228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241,
+            81, 51, 145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199, 106, 157,
+            184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93,
+            222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
+        ];
+        
+        // Duplicate the permutation array
+        this.p = new Array(512);
+        for (let i = 0; i < 256; i++) {
+            this.p[256 + i] = this.p[i] = this.permutation[i];
+        }
+    }
     
-    // Create camera
-    threeCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    fade(t) {
+        return t * t * t * (t * (t * 6 - 15) + 10);
+    }
     
-    // Create renderer with render target (offscreen)
-    threeRenderer = new THREE.WebGLRenderer({ antialias: true });
-    threeRenderer.setSize(renderSize, renderSize);
+    lerp(a, b, t) {
+        return a + t * (b - a);
+    }
     
-    // Create render target
-    renderTarget = new THREE.WebGLRenderTarget(renderSize, renderSize);
+    grad(hash, x, y, z = 0) {
+        const h = hash & 15;
+        const u = h < 8 ? x : y;
+        const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+        return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+    }
     
-    // Create bigger torus geometry (radius: 3.5, tube: 1.2)
-    const geometry = new THREE.TorusGeometry(3.5, 1.2, 32, 100);
-    
-    // Create material with emissive lighting for better brightness variation
-    const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        emissive: 0xffffff,
-        emissiveIntensity: 0.5,
-        metalness: 0.3,
-        roughness: 0.4
-    });
-    
-    // Create torus mesh (centered at origin)
-    torus = new THREE.Mesh(geometry, material);
-    threeScene.add(torus);
-    
-    // Add lights for better brightness variation
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    threeScene.add(ambientLight);
-    
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight1.position.set(5, 5, 5);
-    threeScene.add(directionalLight1);
-    
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight2.position.set(-5, -5, -5);
-    threeScene.add(directionalLight2);
-    
-    // Initialize pixel data array
-    pixelData = new Uint8Array(renderSize * renderSize * 4);
-    
-    // Center the torus on first init
-    updateThreeSceneCentering();
+    noise(x, y, z = 0) {
+        // For 3D noise, we'll use a simplified approach by combining 2D noise layers
+        // This creates smooth animated noise
+        const X = Math.floor(x) & 255;
+        const Y = Math.floor(y) & 255;
+        const Z = Math.floor(z) & 255;
+        
+        x -= Math.floor(x);
+        y -= Math.floor(y);
+        z -= Math.floor(z);
+        
+        const u = this.fade(x);
+        const v = this.fade(y);
+        const w = this.fade(z);
+        
+        const A = this.p[X] + Y;
+        const AA = this.p[A] + Z;
+        const AB = this.p[A + 1] + Z;
+        const B = this.p[X + 1] + Y;
+        const BA = this.p[B] + Z;
+        const BB = this.p[B + 1] + Z;
+        
+        return this.lerp(
+            this.lerp(
+                this.lerp(
+                    this.grad(this.p[AA], x, y, z),
+                    this.grad(this.p[BA], x - 1, y, z),
+                    u
+                ),
+                this.lerp(
+                    this.grad(this.p[AB], x, y - 1, z),
+                    this.grad(this.p[BB], x - 1, y - 1, z),
+                    u
+                ),
+                v
+            ),
+            this.lerp(
+                this.lerp(
+                    this.grad(this.p[AA + 1], x, y, z - 1),
+                    this.grad(this.p[BA + 1], x - 1, y, z - 1),
+                    u
+                ),
+                this.lerp(
+                    this.grad(this.p[AB + 1], x, y - 1, z - 1),
+                    this.grad(this.p[BB + 1], x - 1, y - 1, z - 1),
+                    u
+                ),
+                v
+            ),
+            w
+        );
+    }
 }
 
-// Update camera position to keep torus centered
-function updateThreeSceneCentering() {
-    if (!threeCamera) return;
-    
-    // Position camera to keep torus centered
-    // Use a distance that ensures the torus fits well in view
-    // The torus has a radius of ~4.7 (3.5 + 1.2), so we need enough distance
-    const distance = 8;
-    threeCamera.position.set(0, 0, distance);
-    threeCamera.lookAt(0, 0, 0);
-    
-    // Camera aspect is always 1:1 since render target is square
-    threeCamera.aspect = 1;
-    threeCamera.updateProjectionMatrix();
-}
+const perlin = new PerlinNoise();
 
-// Render Three.js scene and update pixel data
-function renderThreeScene() {
-    // Rotate torus
-    torus.rotation.x += 0.01;
-    torus.rotation.y += 0.015;
-    
-    // Render to render target
-    threeRenderer.setRenderTarget(renderTarget);
-    threeRenderer.render(threeScene, threeCamera);
-    threeRenderer.setRenderTarget(null);
-    
-    // Read pixel data from render target
-    threeRenderer.readRenderTargetPixels(
-        renderTarget,
-        0,
-        0,
-        renderSize,
-        renderSize,
-        pixelData
-    );
-}
-
-// Get brightness value at a specific position (normalized 0-1)
-function getBrightnessAt(x, y) {
-    if (!pixelData) return 0.5;
-    
-    // Map canvas coordinates to render target coordinates
-    const renderX = Math.floor((x / canvas.width) * renderSize);
-    const renderY = Math.floor((y / canvas.height) * renderSize);
-    
-    // Clamp to valid range
-    const clampedX = Math.max(0, Math.min(renderSize - 1, renderX));
-    const clampedY = Math.max(0, Math.min(renderSize - 1, renderY));
-    
-    // Calculate index in pixel data array (RGBA format)
-    const index = (clampedY * renderSize + clampedX) * 4;
-    
-    // Get RGB values
-    const r = pixelData[index];
-    const g = pixelData[index + 1];
-    const b = pixelData[index + 2];
-    
-    // Calculate brightness (luminance formula)
-    const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    
-    return brightness;
-}
-
+// Animation time for noise
+let noiseTime = 0;
+const noiseSpeed = 0.01;
+const noiseScale = 0.01; // Scale for spatial noise
 const baseSize = 20;
-const sizeVariation = 20; // How much the size can vary based on brightness
+const sizeVariation = 18; // How much the size can vary (±8 pixels)
 
 // Mouse influence parameters
-const mouseInfluenceRadius = 300; // Radius of influence sphere
-const mouseInfluenceBoost = 5; // Maximum additional size when at mouse position
+const mouseInfluenceRadius = 500; // Radius of influence sphere
+const mouseInfluenceBoost = 15; // Maximum additional size when at mouse position
 
-// Size transition smoothing factor (0-1, lower = smoother/slower transition)
-const sizeTransitionSpeed = 0.15;
-
-// Draw cursor using SVG image with variable size
+// Draw cursor using SVG image with variable size based on Perlin noise
 function drawCursor(ctx, x, y, angle = 0, size = baseSize) {
     if (!imageLoaded) return;
     
@@ -180,8 +160,7 @@ function initializeCursors() {
             cursors.push({
                 x: col * spacing,
                 y: row * spacing,
-                angle: 0,
-                currentSize: baseSize // Track current size for smooth transitions
+                angle: 0
             });
         }
     }
@@ -191,10 +170,6 @@ initializeCursors();
 window.addEventListener('resize', () => {
     resizeCanvas();
     initializeCursors();
-    // Update Three.js scene centering on resize
-    if (threeScene) {
-        updateThreeSceneCentering();
-    }
     if (imageLoaded) {
         draw();
     }
@@ -266,11 +241,6 @@ function updateCursorAngles() {
 function draw() {
     if (!imageLoaded) return;
     
-    // Render Three.js scene first to update pixel data
-    if (threeScene) {
-        renderThreeScene();
-    }
-    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Get current target position (mouse or random target for mobile)
@@ -282,13 +252,18 @@ function draw() {
         if (cursor.x >= -spacing && cursor.x <= canvas.width + spacing &&
             cursor.y >= -spacing && cursor.y <= canvas.height + spacing) {
             
-            // Calculate target size based on Three.js scene brightness
-            // The brighter the pixel, the bigger the cursor
-            const brightness = getBrightnessAt(cursor.x, cursor.y);
+            // Calculate size based on Perlin noise
+            // Use x, y position and time for 3D noise effect
+            const noiseValue = perlin.noise(
+                cursor.x * noiseScale,
+                cursor.y * noiseScale,
+                noiseTime
+            );
             
-            // Map brightness [0, 1] to size variation
-            // Brightness of 0 = smallest, brightness of 1 = largest
-            let targetSize = baseSize + brightness * sizeVariation;
+            // Map noise from [-1, 1] to size variation
+            // Normalize noise to [0, 1] first
+            const normalizedNoise = (noiseValue + 1) / 2;
+            let size = baseSize + (normalizedNoise - 0.5) * 2 * sizeVariation;
             
             // Add mouse influence - calculate distance to target
             const dx = cursor.x - targetX;
@@ -302,19 +277,19 @@ function draw() {
                 // Smoothstep: 3t^2 - 2t^3 for smooth easing
                 const influence = 1 - (normalizedDistance * normalizedDistance * (3 - 2 * normalizedDistance));
                 const sizeBoost = influence * mouseInfluenceBoost;
-                targetSize += sizeBoost;
+                size += sizeBoost;
             }
             
-            // Smoothly transition from current size to target size
-            cursor.currentSize += (targetSize - cursor.currentSize) * sizeTransitionSpeed;
-            
-            drawCursor(ctx, cursor.x, cursor.y, cursor.angle, cursor.currentSize);
+            drawCursor(ctx, cursor.x, cursor.y, cursor.angle, size);
         }
     });
 }
 
 // Animation loop
 function animate() {
+    // Update noise time for animated effect
+    noiseTime += noiseSpeed;
+    
     if (isMobile) {
         // Smooth interpolation towards random target
         currentTargetX += (randomTargetX - currentTargetX) * 0.05;
@@ -324,17 +299,12 @@ function animate() {
     updateCursorAngles();
     draw();
     
-    // Always animate for Three.js scene rotation
+    // Always animate for noise effect
     animationFrameId = requestAnimationFrame(animate);
 }
 
 // Initialize everything after image loads
 function initialize() {
-    // Initialize Three.js scene
-    if (typeof THREE !== 'undefined') {
-        initThreeScene();
-    }
-    
     if (isMobile) {
         // Start with random position
         setRandomTarget();
@@ -342,7 +312,7 @@ function initialize() {
         currentTargetY = randomTargetY;
         randomTargetInterval = setInterval(setRandomTarget, 3000);
     }
-    // Start animation loop (runs continuously for Three.js scene animation)
+    // Start animation loop (runs continuously for noise effect)
     if (!animationFrameId) {
         animate();
     }
